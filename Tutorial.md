@@ -585,7 +585,7 @@ We start by generating vertex arrays for our VAO and binding it. Then, we genera
 
 We then load the model we want to use. I use another macro here, `MODELDIR`, which gets the model directory so I don't have to specify it myself. (This is why my folder names are the same as the model object :3) Since I'm running this on 64-bit (x64), my macro looks like:
 ```
-#define MODELDIR(m) "../../Models/" + m.substr(0, m.length() - 4) + "/"
+#define MODELDIR(m) "../../Models/" + m.substr(0, m.find(".")) + "/"
 ```
 If you're on 32-bit (Win32), you can omit the first "``../``" of that string. 
 
@@ -828,7 +828,7 @@ Now, we can render any model we want as many times as we want. But first, we nee
 #include "Texture.h"
 
 #define AI_LOAD_FLAGS aiProcess_Triangulate | aiProcess_PreTransformVertices
-#define MODELDIR(m) "../../Models/" + m.substr(0, m.length() - 4) + "/"
+#define MODELDIR(m) "../../Models/" + m.substr(0, m.find(".")) + "/"
 
 class Mesh
 {
