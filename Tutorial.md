@@ -129,7 +129,7 @@ Project Directory/
 	- stb_image.h
 	- ...
 ```
-You can of course model your hierarchy in any way you like, but this is the way I did mine. (Consider changing yours at least a little bit 🥺 like keeping your textures in the same directory as the model files, or in a separate folder entirely.)
+You can of course model your hierarchy in any way you like, but this is the way I did mine. Keeping the textures in a subfolder within the model folder seemed best for organisation and it allows me to find the model folder and files with only the model's name.
 
 
 ### Bugs
