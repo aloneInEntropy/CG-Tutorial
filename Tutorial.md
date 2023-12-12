@@ -1311,6 +1311,12 @@ This fragment shader will use a simple form of the Phong Illumination Model to l
 ### 1.4: Blender Tutorial
 This section is a simple blender tutorial you can follow to get comfortable exporting simple models with textures to .obj files. It is also designed to get you more familiar with whatever file system you chose to organise your files with.
 
+You can check models for free with:
+- 3D Viewer, an online open-source webpage that lets you load and view models
+	- https://3dviewer.net/
+- Microsoft 3D Viewer, Microsoft's free object loader available on the Microsoft Store
+	- https://apps.microsoft.com/detail/9NBLGGH42THS?ocid=pdpshare&hl=en-us&gl=US
+
 #### 1.4.1: Downloading Blender
 You can download Blender here:
 
@@ -1394,6 +1400,14 @@ In the resulting window, make sure you've navigated to the folder you wish to st
 ![[Pasted image 20231205161617.png|500]]
 
 With that, you have successfully created a new simple textured model in Blender.
+
+#### 1.4.7: Embedded Textures
+Blender actually lets you draw and create materials within the editor and export them with your models. These are known as "embedded materials". They can be saved externally to be edited with an image editor or drawing app, or designed right in Blender. Adding them to a model is simple enough, but a few changes will need to be made.
+
+First, create a new Blender project. This time, we'll create a cone. Select the cube and press `Delete` or 'X' to delete the cube, then press Shift + 'A' to add a new mesh. [pic] Go to `Mesh -> Cone`. [pic of cone]
+
+
+
 ## Part 1.5 - Testing
 (Not unit testing; sorry if you freaked out). This is a halfway point, a section made to check if you've set up everything correctly. For simplicity's sake, I have pushed all my imports into a separate `main.h` file and only import that into `main.cpp`. You don't have to do this, but I found it easier to manage.
 

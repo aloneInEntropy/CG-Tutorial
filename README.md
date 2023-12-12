@@ -7,8 +7,11 @@ This tutorial was created by Iris Onwa, a 4th year computer science student at T
 You can read the tutorial here: [Tutorial.md](Tutorial.md)
 
 To add:
-- [ ] Loading in boned meshes
+- [ ] Embedded textures
+	- [ ] How to create them in Blender
+	- [ ] How to add them in code
 - [ ] Cubemaps
+- [ ] Loading in boned meshes
 - [ ] Shadows
 
 If I have time to get them done myself:
