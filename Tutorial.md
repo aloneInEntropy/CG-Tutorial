@@ -301,15 +301,26 @@ class Texture
 {
 public:
 	Texture(const std::string, GLenum);
+	Texture(GLenum);
 	bool load();
+	bool load(unsigned int, void*);
 	void bind(GLenum);
 
 	std::string file_name;
 	GLenum textureEnum;
 	unsigned int texture;
+	int _width, _height, _nrChannels, _bits_per_pixel;
 };
 ```
-`load()` will obviously load in the texture we give it, and `bind(GLenum)` binds it. The class declaration takes in a string of its path and the type of texture it will be. Since we're (probably?) only going to use 2D textures, this will remain the same. The `textureEnum` will be given the same value in the parameter. The unsigned int `texture` will be a buffer object to hold information about this particular texture. Also, note that we don't actually have to give function declaration parameters names in the header file. You can give it a name or not; it won't change anything.
+- `Texture(const std::string, GLenum)` takes in a string of its path and the type of texture it will be
+- `Texture(GLenum)` takes in only a type of texture and is to be used for preparing to load in textured embedded in the mesh file
+- `load()` will load in the texture we give it using the first class declaration
+- `load(unsigned int, void*)` takes in a buffer size and binary image data to load in an embedded texture. The unsigned int `texture` will be a buffer object to hold information about this particular texture.
+- `bind(GLenum)` binds the texture and prepares it for reading
+
+The `GLenum` we get from instantiation and `bind` are given to the `textureEnum` variable, and the `file_name` is similar. `texture` is our buffer for the texture. `_width` and `_height` are the width and height of the image, respectively, `_nrChannels` is how many colour channels the texture has, and `_bits_per_pixel` is the number of bits in our texture, which determines the type of texture it may be. (I'm pretty sure `_nrChannels` and `_bits_per_pixel` refer to roughly the same thing, but they are used in different contexts here).
+
+Also, note that we don't actually have to give function declaration parameters names in the header file. You can give it a name or not; it won't change anything.
 
 #### Implementation (.cpp)
 In your Texture.h (or .hpp) file, add the following line just below the other import:
@@ -326,7 +337,14 @@ Texture::Texture(const std::string fname, GLenum texType = GL_TEXTURE_2D) {
 	file_name = fname;
 }
 ```
-We will need a reference to the path specified in the `fname` parameter (it does need to be named here) when we later load the texture, as well as the `texType` enum.
+We will need a reference to the path specified in the `fname` parameter (it does need to be named here) when we later load the texture, as well as the `texType` enum. We default to `GL_TEXTURE_2D`.
+
+```cpp
+Texture::Texture(GLenum texType = GL_TEXTURE_2D) {
+	textureEnum = texType;
+}
+```
+The second class declaration is even simpler.
 
 Next, we can define the `bind` function:
 ```cpp
@@ -337,8 +355,8 @@ void Texture::bind(GLenum textureUnit) {
 ```
 Also a very short function. `glActiveTexture` sets the current texture to the active texture for this mesh. `glBindTexture` then binds it to the buffer `texture` that we defined in the header file, specifying it as a `GL_TEXTURE_2D`.
 
-Finally, we can write the `load` function.
-
+Finally, we can write the `load` functions.
+##### `load`
 We start by generating a buffer for the texture at the address our stored buffer object:
 ```cpp
 glGenTextures(1, &texture);
@@ -387,6 +405,42 @@ Now, we set texture parameters for wrapping and filtering modes. Here, `S` means
 
 Finally, we free the data since we aren't using it anymore and return true, because why not?
 
+##### `load(unsigned int, void*)`
+The second `load` function is very similar to the first, but things are done slightly out of order. To start, our `data` variable is created with:
+```cpp
+void* data = stbi_load_from_memory((const stbi_uc*)img_data, buffer, &_width, &_height, &_bits_per_pixel, 0);
+```
+where `img_data` is the data.
+
+We no longer need to check if the data is fine because we'll check if this data exists before calling this function, but we do need to check the type of texture it is to figure out how to load it. We can use a simple switch statement on `_bits_per_pixel` to find out the type of texture we have:
+```cpp
+switch (_bits_per_pixel)
+{
+case 1:
+	glTexImage2D(textureEnum, 0, GL_RED, _width, _height, 0, GL_RED, GL_UNSIGNED_BYTE, data);
+	break;
+case 3:
+	glTexImage2D(textureEnum, 0, GL_RGB, _width, _height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+	break;
+case 4:
+	glTexImage2D(textureEnum, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	break;
+default:
+	printf("not supported");
+	break;
+}
+```
+This switch statement loads in only red channels if it only has 1, RGB channels if it has 3, and RGB with alpha (transparency) channels if it has 4. Any other number would be weird so we don't support it. This check should also be done for the other `load()` function, we I skipped it here.
+
+Finally, we set texture parameters like normal:
+```cpp
+glTexParameteri(textureEnum, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+glTexParameteri(textureEnum, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+glTexParameteri(textureEnum, GL_TEXTURE_WRAP_S, GL_REPEAT);
+glTexParameteri(textureEnum, GL_TEXTURE_WRAP_T, GL_REPEAT);
+return true;
+```
+
 #### Full File
 ##### Texture.h
 ```cpp
@@ -415,8 +469,12 @@ public:
 #include "stb_image.h"
 #define STB_IMAGE_IMPLEMENTATION
 
-Texture::Texture(const std::string fname, GLenum texType = GL_TEXTURE_2D) {
-	textureEnum = texType;
+Texture::Texture(GLenum textureType = GL_TEXTURE_2D) {
+	textureEnum = textureType;
+}
+
+Texture::Texture(const std::string fname, GLenum textureType = GL_TEXTURE_2D) {
+	textureEnum = textureType;
 	file_name = fname;
 }
 
@@ -454,6 +512,36 @@ bool Texture::load() {
 		std::cout << "Failed to load texture" << std::endl;
 	}
 	stbi_image_free(data);
+	return true;
+}
+
+
+bool Texture::load(unsigned int buffer, void* img_data) {
+	void* data = stbi_load_from_memory((const stbi_uc*)img_data, buffer, &_width, &_height, &_bits_per_pixel, 0);
+	stbi_set_flip_vertically_on_load(true);
+	glGenTextures(1, &texture);
+	glBindTexture(textureEnum, texture);
+
+	switch (_bits_per_pixel)
+	{
+	case 1:
+		glTexImage2D(textureEnum, 0, GL_RED, _width, _height, 0, GL_RED, GL_UNSIGNED_BYTE, data);
+		break;
+	case 3:
+		glTexImage2D(textureEnum, 0, GL_RGB, _width, _height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		break;
+	case 4:
+		glTexImage2D(textureEnum, 0, GL_RGBA, _width, _height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		break;
+	default:
+		printf("not supported");
+		break;
+	}
+
+	glTexParameteri(textureEnum, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(textureEnum, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(textureEnum, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(textureEnum, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	return true;
 }
 ```
@@ -687,23 +775,25 @@ bool Mesh::initMaterials(const aiScene* scene, std::string file_name) {
 			aiString Path;
 
 			if (pMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &Path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS) {
-				std::string p(Path.data);
-
-				if (p.substr(0, 2) == ".\\") {
-					p = p.substr(2, p.size() - 2);
-				}
-
-				std::string fullPath = dir + p;
-				m_Textures[i] = new Texture(fullPath, GL_TEXTURE_2D);
-
-				if (!m_Textures[i]->load()) {
-					printf("Error loading texture '%s'\n", fullPath.c_str());
-					delete m_Textures[i];
-					m_Textures[i] = NULL;
-					valid = false;
-				}
-				else {
-					printf("Loaded texture '%s'\n", fullPath.c_str());
+				const aiTexture* cTex = scene->GetEmbeddedTexture(Path.C_Str());
+				if (cTex) {
+					printf("Loaded embedded texture type %s\n", cTex->achFormatHint);
+					m_Materials[index].diffTex = new Texture(GL_TEXTURE_2D);
+					unsigned int buffer = cTex->mWidth;
+					m_Materials[index].diffTex->load(buffer, cTex->pcData);
+				} else {
+					std::string p(Path.data);
+					std::cout << p << std::endl;
+					if (p.substr(0, 2) == ".\\") {
+						p = p.substr(2, p.size() - 2);
+					}
+					std::string fullPath = dir + p;
+					m_Materials[index].diffTex = new Texture(fullPath, GL_TEXTURE_2D);
+					if (!m_Materials[index].diffTex->load()) {
+						printf("Error loading diffuse texture '%s'\n", fullPath.c_str());
+					} else {
+						printf("Loaded texture '%s'\n", fullPath.c_str());
+					}
 				}
 			}
 		}
@@ -712,7 +802,11 @@ bool Mesh::initMaterials(const aiScene* scene, std::string file_name) {
 }
 ```
 
-Here, we initialise the materials to be used in our texture. We use the path to our file to look for the directory the textures are stored in. Then, we iterate over each material in the scene and find the path to it. .obj files use .mtl files to store the location of textures they use. Since ours are stored near our model files, we don't need to search too far to find them. 
+Here, we initialise the materials to be used in our texture. 
+
+If the texture is embedded, we first print out the type of texture format it was stored in. If it was a jpg, this would print `Loaded embedded texture type jpg`. Next, we create a new Texture of type `GL_TEXTURE_2D` and a buffer to store the texture's width (in size, not its actual dimensions). Then, we use the second type of `Texture.load()` to load an embedded texture.
+
+If the texture is external, we use the path to our file to look for the directory the textures are stored in. Then, we iterate over each material in the scene and find the path to it. .obj files use .mtl files to store the location of textures they use. Since ours are stored near our model files, we don't need to search too far to find them. 
 
 `Path.data` returns the path to these texture files. We access this path and use
 ```
@@ -720,7 +814,7 @@ if (p.substr(0, 2) == ".\\") {
 	p = p.substr(2, p.size() - 2);
 }
 ```
-to get the final directory the file is located in. For example, if the path to the texture is `"C:\\Users\\Iris\\Desktop\\Tutorial\\Models\\cube\\Texture\\egg.jpg"`, `p` would store (?)
+to get the final directory the file is located in. For example, if the path to the texture is `"C:\\Users\\Iris\\Desktop\\Tutorial\\Models\\cube\\Texture\\egg.jpg"`, `p` would store `"egg.jpg"`.
 
 Then we create a new Texture object and load it using this new path and specify that it uses `GL_TEXTURE_2D`. We load this Texture object and if it fails, delete it and note that at least one texture failed to load.
 
@@ -797,7 +891,7 @@ For each mesh, we ensure that we have loaded every texture before rendering. We 
 `glDrawElementsInstancedBaseVertex` is a few things:
 - "elements" means we're using indexed vertices (indices)
 - "instanced" means we're rendering a number of instances
-- "base vertex" means we're using a new index in our set of vertices for each mesh. This is how we properly use a Structure of Arrays (SoA) format ; otherwise we'd have no idea which index to start from for any one mesh.
+- "base vertex" means we're using a new index in our set of vertices for each mesh. This is how we properly use a Structure of Arrays (SoA) format; otherwise we'd have no idea which index to start from for any one mesh.
 
 We use this function to draw our model. We tell it to use `GL_TRIANGLES` because our mesh is triangulated. We give it the number of indices we're working with and tell it the type of the previous count. We then tell it where to find our indices, which starts from the base index of the current mesh. Then we tell it how many instances we want to render. Finally, we specify that we want to move up by `baseVertex` every time we use a new mesh to separate them, again due to us using SoA. We end this function by unbinding our VAO to avoid accidentally modifying our render.
 
@@ -1872,6 +1966,7 @@ public:
 	float yaw;
 	float roll;
 	float sensitivity = 15.0f;
+	float speed = 5.0f;
 
 	// Keyboard movement
 	bool FORWARD = false;
@@ -1901,8 +1996,8 @@ The mouse cursor will be warped to the middle of the screen, which is what these
 
 Since we're warping our cursor the the centre of the screen on each update, we need to keep track of our pitch and yaw values, which we keep in our header file. We can get our pitch value by calculating the distance between the middle of the screen and our cursor's x-value before it gets warped, then multiplying by our sensitivity to scale the difference. Then we multiply by delta to moderate the value with our FPS. We do the same with our yaw value.
 ```cpp
-pitch = Help::clamp(pitch + ((y - yPos) * -sensitivity * delta), -89.0f, 89.0f);
-yaw = Help::wrap(yaw + ((x - xPos) * sensitivity * delta), 0.0f, 360.0f);
+pitch = Help::clamp(pitch + ((y - yPos) * -sensitivity * Help::delta), -89.0f, 89.0f);
+yaw = Help::wrap(yaw + ((x - xPos) * sensitivity * Help::delta), 0.0f, 360.0f);
 glutWarpPointer(xPos, yPos);
 ```
 
@@ -1916,7 +2011,7 @@ front = normalise(vec3(
 	sin(Help::deg2Rad(yaw)) * cos(Help::deg2Rad(pitch))
 ));
 
-right = normalise(cross(front, wUP));
+right = normalise(cross(front, tUP));
 up = normalise(cross(right, front));
 ```
 
@@ -1956,7 +2051,12 @@ This line will hide the cursor.
 ##### getViewMatrix
 The view matrix is what actually allows us to change what we see in the viewport. We use the `look_at` function, defined in the `maths_funcs.cpp` file. Alternatively, you can use `glm::lookAt`. For more information on what this function does, you can read the documentation on it, or look at your notes (Lecture 11 "Viewing", pg 33). I won't be explaining it here because it will be too long and confusing and I don't think you care.
 
-All the `getViewMatrix` function does is return the result of the `look_at` function using our camera's position and front and up directions.
+All the `getViewMatrix` function does is return the result of the `look_at` function using our camera's position and front and up directions:
+```cpp
+mat4 Camera::getViewMatrix() {
+	return look_at(pos, pos + front, up);
+}
+```
 
 In our `display` function, change your declaration of the `view` matrix so that you get this:
 ```cpp
@@ -1997,7 +2097,7 @@ void keyup(unsigned char key, int x, int y) {
 What do these functions do?
 - `specKeyPress` handles the pressing of special keys (CTRL, SHIFT, ALT, etc.). Here we use the left shift key to descend.
 - `specKeyUp` handles the release of special keys
-- `keypress` handles the pressing of regular keys (alphanumeric, etc.). We use this function to control x- and z-axis movement using WASD and space.
+- `keypress` handles the pressing of regular keys (alphanumeric, etc.). We use this function to control x- and z-axis movement using WASD and the y-axis using SPACEBAR.
 - `keyup` handles the release of regular keys
 
 We pass these functions into GLUT:
@@ -2076,6 +2176,7 @@ public:
 	float yaw;
 	float roll;
 	float sensitivity = 15.0f;
+	float speed = 5.0f;
 
 	// Keyboard movement
 	bool FORWARD = false;
@@ -2104,7 +2205,7 @@ void Camera::processView(int x, int y) {
 		sin(Help::deg2Rad(yaw)) * cos(Help::deg2Rad(pitch))
 	));
 	
-	right = normalise(cross(front, wUP));
+	right = normalise(cross(front, tUP));
 	up = normalise(cross(right, front));
 }
 
@@ -2307,6 +2408,14 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 ### Changes
 In `main.cpp`, we will need to modify the uniform structs in our shader. Your `display` function will still use the shader you created, but now you can add a bunch of extra lights:
 ```cpp
+// define this here, outside this function at the top of the file, or in your main.h file
+vector<vec3> pointLightPositions = {
+	vec3(1.3f, -2.0f, -2.5f),
+	vec3(10.6f,  2.3f, -2.4f),
+	vec3(1.3f,  5.1f, -1.1f),
+	vec3(0.0f,  1.0f, -3.0f)
+};
+
 shaders["base"]->use();
 
 shaders["base"]->setVec3("viewPos", camera.pos);

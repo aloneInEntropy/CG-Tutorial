@@ -9,7 +9,7 @@ You can read the tutorial here: [Tutorial.md](Tutorial.md)
 To add:
 - [ ] Embedded textures
 	- [ ] How to create them in Blender
-	- [ ] How to add them in code
+	- [x] How to add them in code
 - [ ] Cubemaps
 - [ ] Loading in boned meshes
 - [ ] Shadows
