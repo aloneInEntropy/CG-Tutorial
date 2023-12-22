@@ -145,6 +145,9 @@ iNum = static_cast<unsigned int>((std::min)(static_cast<size_t>(iNum), prop->mDa
 ```
 The line may not be on exactly line 101. Search for the error line above and replace it.
 
+#### Some parts of my code aren't running
+Check that you're not running your code in Release mode. Release mode ignores `assert` statements, so if a function that returns a boolean is ran inside an `assert` statement, this code will be skipped if you are running in Release mode. Try storing the output to a variable and asserting that, so that your code still runs.
+
 ## Part 0.5 - Helper Class and Maths Functions
 I use a helper class to store various things I don't want to redefine across classes. The class can then be imported into multiple other classes to be reused at will. I also have a Scene Manager class I use to keep track of variable data across the entire project such as [[#2.1.1 Delta Time|delta time]]. This is known as the [singleton pattern](https://en.wikipedia.org/wiki/Singleton_pattern). It isn't fully implemented (no destructors because I don't know how to make them) but you can make one yourself pretty easily, the same way you'd make any other class. Just make everything static and you're good to go :3
 
@@ -171,6 +174,7 @@ public:
 	static float deg2Rad(float val);
 	static float rad2Deg(float val);
 	
+	static float delta;
 	static const int width = 800;
 	static const int height = 600;
 };
@@ -179,6 +183,9 @@ public:
 ### Help.cpp
 ```cpp
 #include "Help.h"
+
+float Help::delta = 0.0f;
+
 std::string Help::readFile(const char* path) {
 	std::ifstream file(path);
 	if (!file.is_open()) {
