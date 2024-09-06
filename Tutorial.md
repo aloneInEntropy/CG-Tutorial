@@ -205,9 +205,7 @@ std::string Help::readFile(const char* path) {
 
 // Wrap a value between min and max. If val is greater than max, it will wraparound to min and begin climbing from there, and vice versa.
 float Help::wrap(float val, float min, float max) {
-	int range = max - min;
-	if (val < min) val += range * ((min - val) / range + 1); // i don't think this makes any sense to have?? why is this here????
-	return fmod(min + (val - min), range);
+	return fmod(min + (val - min), max - min);
 }
 
 // Clamp a value between a minimum and maximum so that val cannot be greater than max or smaller than min.
@@ -1204,34 +1202,28 @@ public:
 	{
 		glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
 	}
-	// ------------------------------------------------------------------------
 	void setInt(const std::string& name, int value) const
 	{
 		glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
 	}
-	// ------------------------------------------------------------------------
 	void setFloat(const std::string& name, float value) const
 	{
 		glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 	}
 	void setVec2(const std::string& name, vec2 value) const
 	{
-		//if (name == "light.direction") std::cout << value.v[0] << ", " << value.v[1] << ", " << value.v[2] << std::endl;
 		glUniform2f(glGetUniformLocation(ID, name.c_str()), value.v[0], value.v[1]);
 	}
 	void setVec2(const std::string& name, float x, float y) const
 	{
-		//if (name == "light.direction") std::cout << value.v[0] << ", " << value.v[1] << ", " << value.v[2] << std::endl;
 		glUniform2f(glGetUniformLocation(ID, name.c_str()), x, y);
 	}
 	void setVec3(const std::string& name, vec3 value) const
 	{
-		//if (name == "light.direction") std::cout << value.v[0] << ", " << value.v[1] << ", " << value.v[2] << std::endl;
 		glUniform3f(glGetUniformLocation(ID, name.c_str()), value.v[0], value.v[1], value.v[2]);
 	}
 	void setVec3(const std::string& name, float x, float y, float z) const
 	{
-		//if (name == "light.direction") std::cout << value.v[0] << ", " << value.v[1] << ", " << value.v[2] << std::endl;
 		glUniform3f(glGetUniformLocation(ID, name.c_str()), x, y, z);
 	}
 	void setMat4(const std::string& name, const mat4 &mat) const
@@ -1643,7 +1635,7 @@ mat4 view = identity_mat4();
 view = translate(view, vec3(0.6f, 0.3f, 0.8f));
 mat4 persp_proj = perspective(45.0f, (float)width / (float)height, 0.1f, 1000.0f);
 shaders["base"]->setMat4("view", view);
-shaders["base"]->setMat4("proj", persp_proj);
+shaders["base"]->setMat4("projection", persp_proj);
 ```
 The `45.0f` in the `perspective` function is our field-of-view (FOV). `width` and `height` can be defined in your `main.h` file as whatever you like, such as 800 and 600, respectively. Then, we give these matrices to our shader for rendering.
 
@@ -1715,7 +1707,7 @@ int main(int argc, char** argv) {
 If all goes well, you should get something similar to this:
 ![[Pasted image 20231205172258.png|700]]
 
-And if not, feel free to tweak the view matrix or `viewPos` shader value until you get something you like.
+And if not, feel free to tweak the view matrix, `viewPos` shader value, or spread until you get something you like. If nothing is appearing, try changing the spread to 1 and checking that anything shows up.
 #### Full Code
 ##### main.h
 ```cpp
@@ -1801,7 +1793,7 @@ void display() {
 	view = translate(view, vec3(0.6f, 0.3f, 0.8f));
 	mat4 persp_proj = perspective(45.0f, (float)width / (float)height, 0.1f, 1000.0f);
 	shaders["base"]->setMat4("view", view);
-	shaders["base"]->setMat4("proj", persp_proj);
+	shaders["base"]->setMat4("projection", persp_proj);
 
 	// Transform each instance
 	const unsigned int numInstances = 1000;
@@ -2001,10 +1993,10 @@ float yPos = Help::height / 2.0;
 ```
 The mouse cursor will be warped to the middle of the screen, which is what these variables are keeping track of. Next, we'll calculate the pitch and yaw values (we won't calculate the roll since we won't be using it). 
 
-Since we're warping our cursor the the centre of the screen on each update, we need to keep track of our pitch and yaw values, which we keep in our header file. We can get our pitch value by calculating the distance between the middle of the screen and our cursor's x-value before it gets warped, then multiplying by our sensitivity to scale the difference. Then we multiply by delta to moderate the value with our FPS. We do the same with our yaw value.
+Since we're warping our cursor the the centre of the screen on each update, we need to keep track of our pitch and yaw values, which we keep in our header file. We can get our pitch value by calculating the distance between the middle of the screen and our cursor's x-value before it gets warped, then multiplying by our sensitivity to scale the difference. We do the same with our yaw value.
 ```cpp
-pitch = Help::clamp(pitch + ((y - yPos) * -sensitivity * Help::delta), -89.0f, 89.0f);
-yaw = Help::wrap(yaw + ((x - xPos) * sensitivity * Help::delta), 0.0f, 360.0f);
+pitch = Help::clamp(pitch + ((y - yPos) * -sensitivity), -89.0f, 89.0f);
+yaw = Help::wrap(yaw + ((x - xPos) * sensitivity), 0.0f, 360.0f);
 glutWarpPointer(xPos, yPos);
 ```
 
@@ -2056,7 +2048,7 @@ glutSetCursor(GLUT_CURSOR_NONE);
 This line will hide the cursor.
 
 ##### getViewMatrix
-The view matrix is what actually allows us to change what we see in the viewport. We use the `look_at` function, defined in the `maths_funcs.cpp` file. Alternatively, you can use `glm::lookAt`. For more information on what this function does, you can read the documentation on it, or look at your notes (Lecture 11 "Viewing", pg 33). I won't be explaining it here because it will be too long and confusing and I don't think you care.
+The view matrix is what actually allows us to change what we see in the viewport. We use the `look_at` function, defined in the `maths_funcs.cpp` file. Alternatively, you can use `glm::lookAt`. For more information on what this function does, you can [read the documentation on it](https://registry.khronos.org/OpenGL-Refpages/gl2.1/xhtml/gluLookAt.xml), or look at your notes (Lecture 11 "Viewing", pg 33), or [check this StackOverflow post](https://stackoverflow.com/a/21830455) instead.
 
 All the `getViewMatrix` function does is return the result of the `look_at` function using our camera's position and front and up directions:
 ```cpp
@@ -2146,7 +2138,7 @@ if (DOWN) {
 
 `speed` is our movement speed. We multiply our speed by delta and the direction we're looking in to get our new position. When moving to the left or right, we get the cross product of our facing direction and our camera's up direction (NOT the global up) to get our right direction.
 
-Finally, add the following line to the `display` function in your `main.cpp` file:
+Finally, add the following line to the `updateScene` function in your `main.cpp` file:
 ```cpp
 camera.processMovement();
 ```
@@ -2203,7 +2195,7 @@ void Camera::processView(int x, int y) {
 	float xPos = Help::width / 2.0;
 	float yPos = Help::height / 2.0;
 	pitch = Help::clamp(pitch + ((y - yPos) * -sensitivity * delta), -89.0f, 89.0f);
-	yaw = Help::wrap(yaw + ((x - xPos) * sensitivity * delta), 0.0f, 360.0f);
+	yaw = Help::wrap(yaw + ((x - xPos) * sensitivity * delta), 0.0f, 359.0f);
 	glutWarpPointer(xPos, yPos);
 
 	front = normalise(vec3(
