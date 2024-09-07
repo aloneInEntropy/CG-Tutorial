@@ -2469,7 +2469,7 @@ shaders["base"]->setFloat("spotLight.constant", 1.0f);
 shaders["base"]->setFloat("spotLight.linear", 0.09f);
 shaders["base"]->setFloat("spotLight.quadratic", 0.032f);
 shaders["base"]->setFloat("spotLight.cutOff", cos(Help::deg2Rad(2.5f)));
-shaders["base"]->setVec3("spotLight.outerCutOff", cos(Help::deg2Rad(2.6f)));
+shaders["base"]->setFloat("spotLight.outerCutOff", cos(Help::deg2Rad(2.6f)));
 ```
 
 This will create a flashlight effect using the spotlight to follow the camera's direction. 
